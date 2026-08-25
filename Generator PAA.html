@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kartu PAA — Pendaftaran & Generator</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        * {margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Arial, sans-serif;}
+        html, body {height:100%; min-height:100vh;}
+        body {
+            background: linear-gradient(135deg, #e1f5fe 0%, #b3e5fc 100%);
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .halaman {display:none; width:100%; max-width:460px; margin:0 auto;}
+        .halaman.aktif {display:block;}
+        .container {
+            background:#fff; border-radius:20px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.12);
+            padding:32px 24px;
+            width:100%;
+        }
+        .header {text-align:center; margin-bottom:28px;}
+        .header .ikon {font-size:36px; margin-bottom:8px;}
+        .header h1 {font-size:22px; color:#0288d1; font-weight:bold; margin-bottom:8px;}
+        .header p {font-size:15px; color:#666;}
+        .form-group {margin-bottom:22px;}
+        label {display:block; font-size:15px; font-weight:600; color:#333; margin-bottom:10px;}
+        input {
+            width:100%; padding:14px 16px; border:2px solid #b2ebf2;
+            border-radius:12px; font-size:16px; outline:none; transition:all 0.25s;
+        }
+        input:focus {border-color:#0288d1; box-shadow:0 0 0 3px rgba(2,136,209,0.15);}
+        input::placeholder {color:#bbb;}
+        .tanggal-group {display:flex; gap:10px;}
+        .tanggal-input {flex:1;}
+        .tanggal-input input {text-align:center; padding:14px 5px;}
+        .btn-generate {
+            width:100%; padding:15px; background:linear-gradient(90deg,#0288d1,#03a9f4);
+            color:white; border:none; border-radius:12px; font-size:18px; font-weight:bold;
+            cursor:pointer; transition:all 0.2s; margin-top:10px;
+        }
+        .btn-generate:active {transform:scale(0.97);}
+
+        .loading-box {display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:50vh; padding:40px 20px;}
+        .spinner {width:56px; height:56px; border:4px solid #e0e0e0; border-top-color:#0288d1; border-radius:50%; animation:putar 1s linear infinite; margin-bottom:16px;}
+        @keyframes putar {to{transform:rotate(360deg);}}
+        .timer-teks {font-size:28px; font-weight:bold; color:#0288d1;}
+        .keterangan {margin-top:10px; color:#666; font-size:15px;}
+
+        .btn-download {
+            width:100%; padding:14px; background:#28a745; color:white; border:none;
+            border-radius:12px; font-size:17px; font-weight:bold; cursor:pointer;
+            margin-bottom:20px; display:flex; align-items:center; justify-content:center; gap:8px;
+            transition:all 0.2s;
+        }
+        .btn-download:hover {background:#218838;}
+        .btn-download:active {transform:scale(0.97);}
+
+        .kartu-paa {
+            background:#ffffff;
+            border:2px solid #000000;
+            border-radius:8px;
+            padding:30px 25px;
+            display:none;
+            margin-top:0;
+            color:#000000;
+            font-family:"Times New Roman", serif;
+        }
+        .kartu-paa .kartu-header {
+            text-align:center;
+            margin-bottom:20px;
+            border-bottom:2px solid #000;
+            padding-bottom:15px;
+        }
+        .kartu-paa .kartu-header h2 {
+            font-size:22px;
+            font-weight:bold;
+            color:#000;
+            margin-bottom:5px;
+        }
+        .kartu-paa .kartu-header p {
+            font-size:16px;
+            color:#000;
+            line-height:1.4;
+        }
+        .kartu-paa .kartu-tahun {
+            font-size:20px;
+            font-weight:bold;
+            text-align:center;
+            margin-bottom:25px;
+        }
+        .kartu-paa .kartu-body p {
+            font-size:18px;
+            margin:12px 0;
+            line-height:1.6;
+        }
+        .kartu-paa .kartu-footer {
+            margin-top:60px;
+            text-align:left;
+        }
+        .kartu-paa .kartu-footer .ucapan {
+            font-size:18px;
+            font-weight:500;
+        }
+        .tolak-box {text-align:center; padding:40px 20px; display:none;}
+        .tolak-box h2 {color:#e53935; font-size:24px; margin-bottom:16px;}
+        .icon-tolak {font-size:60px; margin-bottom:20px;}
+        .animasi-admin {
+            position:fixed; inset:0; background:rgba(0,0,0,0.85);
+            display:none; align-items:center; justify-content:center; flex-direction:column; z-index:999;
+        }
+        .animasi-admin .ikon {font-size:72px; animation:skala 0.6s ease-in-out;}
+        .animasi-admin .teks {color:white; font-size:20px; font-weight:bold; margin-top:20px; text-align:center; padding:0 20px;}
+        @keyframes skala {0%{transform:scale(0);} 50%{transform:scale(1.2);} 100%{transform:scale(1);}}
+        .btn-kembali {
+            padding:10px 18px; background:#78909c; color:white; border:none;
+            border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:20px; font-size:15px;
+        }
+        .btn-kembali:active {background:#607d8b;}
+
+        .halaman-admin {
+            background: linear-gradient(135deg, #12121f 0%, #1e1e30 100%);
+            min-height:100vh; padding:0; display:none; position:fixed; inset:0; overflow-y:auto;
+        }
+        .halaman-admin.aktif {display:block;}
+        .admin-container {
+            background:#fff; border-radius:0; box-shadow:none; padding:16px;
+            max-width:100%; width:100%; min-height:100vh; margin:0; border:none;
+        }
+        .admin-header {
+            background:linear-gradient(90deg, #283593, #3949ab);
+            color:white; padding:20px; border-radius:16px; text-align:center; margin-bottom:20px;
+        }
+        .admin-header h2 {font-size:22px; margin-bottom:6px;}
+        .admin-header p {font-size:14px; opacity:.85; line-height:1.5;}
+        .status-bar {display:flex; align-items:center; justify-content:center; gap:8px; margin-top:12px; font-size:14px;}
+        .indikator {width:12px; height:12px; background:#4caf50; border-radius:50%; animation:kedip 2s infinite;}
+        @keyframes kedip {0%,100%{opacity:1;} 50%{opacity:.3;}}
+        .daftar-header {margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #c5cae9;}
+        .daftar-header h3 {font-size:17px; color:#283593;}
+        .daftar-peserta {
+            background:#f5f7fa; border:1px solid #c5cae9; border-radius:14px;
+            padding:16px; min-height:250px; max-height:500px; overflow-y:auto; margin-bottom:16px;
+        }
+        .peserta-item {
+            background:white; border:1px solid #e8eaf6; border-radius:12px;
+            padding:14px; margin-bottom:12px; font-size:15px;
+            display:flex; justify-content:space-between; align-items:center; gap:12px; transition:all 0.2s;
+        }
+        .peserta-item:hover {border-color:#3949ab; background:#f5f7ff;}
+        .peserta-item .info {flex:1; cursor:pointer;}
+        .peserta-item .urutan {font-weight:bold; color:#3949ab; margin-right:8px;}
+        .peserta-item .nama-link {font-weight:600; color:#283593; font-size:16px;}
+
+        .btn-hapus-satu {
+            padding:10px 16px; background:#ff5252; color:white; border:none;
+            border-radius:10px; font-size:15px; font-weight:bold; cursor:pointer;
+            flex-shrink:0; outline:none;
+        }
+        .btn-hapus-satu:active {background:#ff1744; transform:scale(0.95);}
+
+        .kosong {text-align:center; color:#999; font-style:italic; padding:60px 20px; font-size:15px; line-height:1.7;}
+        .catatan {
+            font-size:14px; color:#666; background:#fff3e0; padding:16px;
+            border-radius:12px; border-left:4px solid #ff9800; line-height:1.8;
+        }
+
+        .modal-latar {
+            position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none;
+            align-items:center; justify-content:center; z-index:100; padding:15px;
+        }
+        .modal-kotak {
+            background:white; border-radius:16px; padding:24px; max-width:420px; width:100%;
+            border:3px solid #283593;
+        }
+        .modal-kotak h3 {color:#283593; margin-bottom:18px; padding-bottom:12px; border-bottom:2px solid #c5cae9; font-size:19px;}
+        .modal-kotak p {margin:10px 0; font-size:15px;}
+        .modal-tombol {margin-top:24px; text-align:right;}
+        .btn-tutup {
+            padding:12px 24px; background:#283593; color:white; border:none;
+            border-radius:10px; font-weight:bold; cursor:pointer; font-size:15px;
+        }
+
+        .konfirmasi-latar {
+            position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none;
+            align-items:center; justify-content:center; z-index:99999; padding:20px;
+        }
+        .konfirmasi-kotak {
+            background:white; border-radius:16px; padding:24px; max-width:360px; width:100%;
+            box-shadow:0 4px 20px rgba(0,0,0,0.2);
+        }
+        .konfirmasi-kotak h3 {font-size:18px; color:#333; margin-bottom:12px; text-align:center;}
+        .konfirmasi-kotak p {font-size:15px; color:#666; margin-bottom:24px; text-align:center; line-height:1.5;}
+        .konfirmasi-tombol {display:flex; gap:12px; justify-content:center;}
+        .btn-batal {
+            padding:12px 24px; background:#e0e0e0; color:#333; border:none;
+            border-radius:10px; font-weight:bold; cursor:pointer; font-size:15px;
+        }
+        .btn-ya {
+            padding:12px 24px; background:#ff5252; color:white; border:none;
+            border-radius:10px; font-weight:bold; cursor:pointer; font-size:15px;
+        }
+        .notifikasi {
+            position:fixed; top:15px; left:50%; transform:translateX(-50%);
+            padding:12px 24px; border-radius:6px; color:white; font-weight:bold;
+            z-index:300; display:none;
+        }
+        .notifikasi.sukses {background:#2e7d32;}
+        .notifikasi.error {background:#c62828;}
+    </style>
+</head>
+<body>
+
+    <div class="notifikasi" id="notifikasi"></div>
+
+    <div class="konfirmasi-latar" id="konfirmasiHapus">
+        <div class="konfirmasi-kotak">
+            <h3>⚠️ Konfirmasi Hapus</h3>
+            <p>Yakin ingin menghapus data peserta ini?<br><strong>Tidak bisa dikembalikan!</strong></p>
+            <div class="konfirmasi-tombol">
+                <button class="btn-batal" onclick="tutupKonfirmasi()">Batalkan</button>
+                <button class="btn-ya" onclick="lakukanHapus()">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="animasi-admin" id="layarAnimasiAdmin">
+        <div class="ikon">🔓</div>
+        <div class="teks">Akses Diberikan — Masuk ke Halaman Rahasia...</div>
+    </div>
+
+    <div class="halaman aktif" id="halamanIdentitas">
+        <div class="container">
+            <div class="header">
+                <div class="ikon">📋</div>
+                <h1>Pendaftaran Kartu PAA</h1>
+                <p>Isi data diri terlebih dahulu</p>
+            </div>
+
+            <form id="formIdentitas">
+                <div class="form-group">
+                    <label for="nama">Nama Lengkap</label>
+                    <input type="text" id="nama" name="nama" placeholder="Masukkan nama lengkap" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Tanggal Lahir <span style="color:#999; font-weight:normal;">(DD / MM / YYYY)</span></label>
+                    <div class="tanggal-group">
+                        <div class="tanggal-input">
+                            <input type="number" id="tgl" name="tgl" placeholder="DD" min="1" max="31">
+                        </div>
+                        <div class="tanggal-input">
+                            <input type="number" id="bln" name="bln" placeholder="MM" min="1" max="12">
+                        </div>
+                        <div class="tanggal-input">
+                            <input type="number" id="thn" name="thn" placeholder="YYYY" min="1900" max="2026">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="timRoblox">Tim Roblox Pertama Masuk</label>
+                    <input type="text" id="timRoblox" name="timRoblox" placeholder="Nama tim Roblox pertama kali masuk">
+                </div>
+
+                <button type="submit" class="btn-generate">⚙️ GENERATE</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="halaman" id="halamanHasil">
+        <div class="container" style="background:transparent; box-shadow:none; padding:0;">
+            <button class="btn-kembali" onclick="kembaliKeHalaman1()">← Kembali</button>
+
+            <div class="loading-box" id="areaLoading">
+                <div class="spinner"></div>
+                <div class="timer-teks" id="timer">5</div>
+                <p class="keterangan">Sedang memproses data...</p>
+            </div>
+
+            <button class="btn-download" id="btnDownload" style="display:none;" onclick="downloadKartu()">
+                📥 Download Kartu PAA
+            </button>
+
+            <div class="kartu-paa" id="areaKartu">
+                <div class="kartu-header">
+                    <h2>KARTU IDENTITAS EPAT</h2>
+                    <p>(Evaluasi Pendaftaran Admin Terakhir)</p>
+                    <h2>PAA (Pendaftaran Admin Avarixen)</h2>
+                </div>
+                <div class="kartu-tahun">2026/2027</div>
+                <div class="kartu-body">
+                    <p><strong>Nama:</strong> <span id="hasilNama"></span></p>
+                    <p><strong>No. Peserta:</strong> <span id="hasilNoPeserta"></span></p>
+                    <p><strong>Username:</strong> <span id="hasilUser"></span></p>
+                    <p><strong>Password:</strong> <span id="hasilPass"></span></p>
+                </div>
+                <div class="kartu-footer">
+                    <div class="ucapan">Selamat mengerjakan! :)</div>
+                </div>
+            </div>
+
+            <div class="tolak-box" id="areaTolak">
+                <div class="icon-tolak">🚫</div>
+                <h2>AKSES DITOLAK</h2>
+                <p id="pesanTolak"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="halaman-admin" id="halamanAdmin">
+        <div class="admin-container">
+            <button class="btn-kembali" onclick="kembaliKeHalaman1()">← Kembali ke Pendaftaran</button>
+            <div class="admin-header">
+                <h2>🔐 HALAMAN RAHASIA — ADMIN</h2>
+                <p>Pusat Data Pendaftaran Peserta PAA</p>
+                <div class="status-bar">
+                    <span class="indikator"></span>
+                    <span>Sistem Aktif — Menunggu Pendaftaran Masuk</span>
+                </div>
+            </div>
+
+            <div class="daftar-peserta">
+                <div class="daftar-header">
+                    <h3>📂 DOKUMEN IDENTITAS — URUTAN PENDAFTARAN</h3>
+                </div>
+                <div id="tempatDaftar">
+                    <p class="kosong">— Belum ada peserta yang mendaftar —<br>Data peserta akan muncul di sini secara otomatis</p>
+                </div>
+            </div>
+
+            <div class="catatan">
+                ⚠️ <strong>Catatan Sistem:</strong><br>
+                • Klik nama peserta untuk melihat detail identitas lengkap.<br>
+                • Data disimpan otomatis — bertahan meskipun halaman ditutup.<br>
+                • Akun dengan nama "Admin" <strong>tidak tercatat</strong> di sini.<br>
+                • Hapus satu-satu — tidak bisa dikembalikan setelah dihapus.
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-latar" id="modalDetail" onclick="if(event.target===this) tutupModal()">
+        <div class="modal-kotak" onclick="event.stopPropagation()">
+            <h3>📄 DETAIL IDENTITAS PESERTA</h3>
+            <p><strong>Urutan:</strong> <span id="d_urutan"></span></p>
+            <p><strong>Nama Lengkap:</strong> <span id="d_nama"></span></p>
+            <p><strong>Tanggal Lahir:</strong> <span id="d_tgl"></span></p>
+            <p><strong>Tim Roblox:</strong> <span id="d_tim"></span></p>
+            <p><strong>Username PAA:</strong> <span id="d_user"></span></p>
+            <p><strong>Password PAA:</strong> <span id="d_pass"></span></p>
+            <p><strong>Waktu Daftar:</strong> <span id="d_waktu"></span></p>
+            <div class="modal-tombol">
+                <button class="btn-tutup" onclick="tutupModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+         const firebaseConfig = {
+             apiKey: "AIzaSyBBcElB6Hc3tEA85_YquWHxM3lFbDWDK_A",
+             authDomain: "avarixen-paa.firebaseapp.com",
+             projectId: "avarixen-paa",
+             storageBucket: "avarixen-paa.firebasestorage.app",
+             messagingSenderId: "649581668717",
+             appId: "1:649581668717:web:d3c6e1728918cbbd9e5264"
+         };
+         firebase.initializeApp(firebaseConfig);
+         const db = firebase.firestore();
+         const koleksi = db.collection('peserta_paa');
+         function tampilkanNotifikasi(pesan, tipe = 'sukses') {
+             const n = document.getElementById('notifikasi');
+             n.textContent = pesan;
+             n.className = 'notifikasi ' + tipe;
+             n.style.display = 'block';
+             setTimeout(() => n.style.display = 'none', 3000);
+         }
+         let dataPengguna = {};
+         let dokIdYangAkanDihapus = null;
+         function bukaKonfirmasiHapus(docId) {
+             dokIdYangAkanDihapus = docId;
+             document.getElementById('konfirmasiHapus').style.display = 'flex';
+         }
+         function tutupKonfirmasi() {
+             dokIdYangAkanDihapus = null;
+             document.getElementById('konfirmasiHapus').style.display = 'none';
+         }
+         async function lakukanHapus() {
+             if (!dokIdYangAkanDihapus) return;
+             try {
+                 await koleksi.doc(dokIdYangAkanDihapus).delete();
+                 tutupKonfirmasi();
+                 renderDaftar();
+             } catch (e) {
+                 alert('Gagal hapus: ' + e.message);
+             }
+         }
+         function kembaliKeHalaman1() {
+             document.getElementById('halamanIdentitas').classList.add('aktif');
+             document.getElementById('halamanHasil').classList.remove('aktif');
+             document.getElementById('halamanAdmin').classList.remove('aktif');
+             document.getElementById('halamanAdmin').style.display = 'none';
+             document.getElementById('areaKartu').style.display = 'none';
+             document.getElementById('areaTolak').style.display = 'none';
+             document.getElementById('btnDownload').style.display = 'none';
+             document.getElementById('formIdentitas').reset();
+         }
+         const inputTgl = document.getElementById('tgl');
+         const inputBln = document.getElementById('bln');
+         const inputThn = document.getElementById('thn');
+         inputTgl.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault(); inputBln.focus();} });
+         inputBln.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault(); inputThn.focus();} });
+         inputThn.addEventListener('keydown', e => { if(e.key==='Enter'){e.preventDefault(); document.getElementById('timRoblox').focus();} });
+         function mainSuara() {
+             try {
+                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                 const osci = audioCtx.createOscillator();
+                 const gain = audioCtx.createGain();
+                 osci.connect(gain); gain.connect(audioCtx.destination);
+                 osci.frequency.setValueAtTime(523, audioCtx.currentTime);
+                 osci.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1);
+                 osci.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2);
+                 gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                 osci.start(audioCtx.currentTime);
+                 osci.stop(audioCtx.currentTime + 0.4);
+             } catch(e) {}
+         }
+         async function simpanKeServer(data) {
+             try {
+                 const snap = await koleksi.orderBy('urutan', 'desc').limit(1).get();
+                 let urutan = 1;
+                 if (!snap.empty) urutan = snap.docs[0].data().urutan + 1;
+                 data.urutan = urutan;
+                 data.waktuDaftar = new Date().toLocaleString('id-ID');
+                 data.timestamp = firebase.firestore.FieldValue.serverTimestamp();
+                 await koleksi.add(data);
+                 return urutan;
+             } catch (e) {
+                 tampilkanNotifikasi('Gagal menyimpan data', 'error');
+                 return 1;
+             }
+         }
+         async function bukaDetail(docId) {
+             const doc = await koleksi.doc(docId).get();
+             if (!doc.exists) return;
+             const x = doc.data();
+             document.getElementById('d_urutan').textContent = 'Peserta ke-' + x.urutan;
+             document.getElementById('d_nama').textContent = x.nama;
+             document.getElementById('d_tgl').textContent = x.tglLahir;
+             document.getElementById('d_tim').textContent = x.timRoblox;
+             document.getElementById('d_user').textContent = x.username;
+             document.getElementById('d_pass').textContent = x.password;
+             document.getElementById('d_waktu').textContent = x.waktuDaftar;
+             document.getElementById('modalDetail').style.display = 'flex';
+         }
+         function tutupModal() {
+             document.getElementById('modalDetail').style.display = 'none';
+         }
+         async function renderDaftar() {
+             const tempat = document.getElementById('tempatDaftar');
+             try {
+                 const snap = await koleksi.orderBy('timestamp', 'desc').get();
+                 if (snap.empty) {
+                     tempat.innerHTML = `<p class="kosong">— Belum ada peserta yang mendaftar —<br>Data peserta akan muncul di sini secara otomatis</p>`;
+                     return;
+                 }
+                 tempat.innerHTML = '';
+                 snap.forEach(doc => {
+                     const x = doc.data();
+                     tempat.innerHTML += `
+                         <div class="peserta-item">
+                             <div class="info" onclick="bukaDetail('${doc.id}')">
+                                 <span class="urutan">#${x.urutan}</span>
+                                 <span class="nama-link">${x.nama}</span>
+                             </div>
+                             <button class="btn-hapus-satu" onclick="event.stopPropagation(); bukaKonfirmasiHapus('${doc.id}')">Hapus</button>
+                         </div>
+                     `;
+                 });
+             } catch (e) {
+                 tempat.innerHTML = `<p class="kosong">Gagal memuat data</p>`;
+             }
+         }
+         function buatKodeTim(namaTim) {
+             const t = namaTim.trim();
+             if(t.toLowerCase() === 'avarixen') return 'AvX';
+             if(t.toLowerCase() === 'spase crew') return 'Sc';
+             if(t.toLowerCase() === 'ravexarz') return 'R';
+             const a = t[0]?.toUpperCase() || '';
+             const b = t[1]?.toLowerCase() || '';
+             return b ? a + b : a;
+         }
+         function buatUsernamePAA(tgl, bln, thn, nama, tim) {
+             const tgl2 = String(tgl).padStart(2, '0');
+             const bln1 = String(parseInt(bln));
+             const inisial = nama.trim()[0].toUpperCase();
+             const kodeTim = buatKodeTim(tim);
+             const duaDigit = String(thn).slice(-2);
+             return tgl2 + bln1 + inisial + kodeTim + duaDigit + '7';
+         }
+         function buatPasswordPAA(tgl, bln, thn, nama, tim, urutan) {
+             const b1 = String(tgl).padStart(2, '0');
+             const b2 = String(parseInt(bln));
+             const b3 = nama.trim()[0].toUpperCase();
+             const b4 = buatKodeTim(tim);
+             const b5 = 'PaA';
+             const b6 = String(thn).slice(-2);
+             const b7 = String(urutan);
+             return b1 + b2 + b3 + b4 + b5 + b6 + b7 + 'A7';
+         }
+         function buatNoPeserta(tgl, bln, thn, urutan) {
+             return `${String(tgl).padStart(2,'0')}.${String(bln).padStart(2,'0')}.${String(thn).slice(-2)}.${urutan}`;
+         }
+         async function downloadKartu() {
+             const kartu = document.getElementById('areaKartu');
+             const btn = document.getElementById('btnDownload');
+             btn.textContent = '⏳ Memproses...'; btn.disabled = true;
+             try {
+                 const canvas = await html2canvas(kartu, {scale:2, useCORS:true, backgroundColor:'#fff', logging:false});
+                 const link = document.createElement('a');
+                 link.download = `Kartu_PAA_${document.getElementById('hasilNama').textContent.replace(/\s+/g,'_')}.png`;
+                 link.href = canvas.toDataURL('image/png');
+                 link.click();
+             } catch { alert('Gagal mengunduh!'); }
+             btn.textContent = '📥 Download Kartu PAA'; btn.disabled = false;
+         }
+         document.getElementById('formIdentitas').addEventListener('submit', async e => {
+             e.preventDefault();
+             const nama = document.getElementById('nama').value.trim();
+             if(nama === 'Admin') {
+                 mainSuara();
+                 const anim = document.getElementById('layarAnimasiAdmin');
+                 anim.style.display = 'flex';
+                 setTimeout(() => {
+                     anim.style.display = 'none';
+                     document.getElementById('halamanIdentitas').classList.remove('aktif');
+                     document.getElementById('halamanAdmin').classList.add('aktif');
+                     document.getElementById('halamanAdmin').style.display = 'block';
+                     renderDaftar();
+                 }, 1500);
+                 return;
+             }
+             dataPengguna = {
+                 nama: nama,
+                 tgl: document.getElementById('tgl').value,
+                 bln: document.getElementById('bln').value,
+                 thn: document.getElementById('thn').value,
+                 timRoblox: document.getElementById('timRoblox').value.trim()
+             };
+             if(!dataPengguna.tgl || !dataPengguna.bln || !dataPengguna.thn || !dataPengguna.timRoblox) {
+                 alert('Harap lengkapi semua data pendaftaran!');
+                 return;
+             }
+             const usia = hitungUsia(dataPengguna.thn, dataPengguna.bln, dataPengguna.tgl);
+             document.getElementById('halamanIdentitas').classList.remove('aktif');
+             document.getElementById('halamanHasil').classList.add('aktif');
+             document.getElementById('areaKartu').style.display = 'none';
+             document.getElementById('areaTolak').style.display = 'none';
+             document.getElementById('btnDownload').style.display = 'none';
+             document.getElementById('areaLoading').style.display = 'flex';
+             if(usia <= 9) {
+                 document.getElementById('pesanTolak').innerHTML = 
+                     `Usia kamu saat ini: <strong>${usia} tahun</strong><br>
+                     Syarat: harus berusia <strong>di atas 9 tahun</strong><br>
+                     Pendaftaran ditolak — tidak dibuatkan Username.`;
+                 mulaiTimer(() => {
+                     document.getElementById('areaLoading').style.display = 'none';
+                     document.getElementById('areaTolak').style.display = 'block';
+                 });
+                 return;
+             }
+             mulaiTimer(async () => {
+                 document.getElementById('areaLoading').style.display = 'none';
+                 await tampilkanKartu();
+             });
+         });
+         function hitungUsia(thn, bln, tgl) {
+             const hariIni = new Date();
+             const lahir = new Date(thn, bln - 1, tgl);
+             let usia = hariIni.getFullYear() - lahir.getFullYear();
+             const bulan = hariIni.getMonth() - lahir.getMonth();
+             if (bulan < 0 || (bulan === 0 && hariIni.getDate() < lahir.getDate())) usia--;
+             return usia;
+         }
+         function mulaiTimer(callback) {
+             let sisa = 5;
+             const el = document.getElementById('timer');
+             el.textContent = sisa;
+             const interval = setInterval(() => {
+                 sisa--; el.textContent = sisa;
+                 if(sisa <= 0) { clearInterval(interval); callback(); }
+             }, 1000);
+         }
+         async function tampilkanKartu() {
+             const snap = await koleksi.orderBy('urutan', 'desc').limit(1).get();
+             let urutan = 1;
+             if (!snap.empty) urutan = snap.docs[0].data().urutan + 1;
+             const username = buatUsernamePAA(dataPengguna.tgl, dataPengguna.bln, dataPengguna.thn, dataPengguna.nama, dataPengguna.timRoblox);
+             const password = buatPasswordPAA(dataPengguna.tgl, dataPengguna.bln, dataPengguna.thn, dataPengguna.nama, dataPengguna.timRoblox, urutan);
+             const noPeserta = buatNoPeserta(dataPengguna.tgl, dataPengguna.bln, dataPengguna.thn, urutan);
+             await simpanKeServer({
+                 nama: dataPengguna.nama,
+                 tglLahir: `${dataPengguna.tgl}/${dataPengguna.bln}/${dataPengguna.thn}`,
+                 timRoblox: dataPengguna.timRoblox,
+                 username: username,
+                 password: password
+             });
+             document.getElementById('hasilNama').textContent = dataPengguna.nama;
+             document.getElementById('hasilNoPeserta').textContent = noPeserta;
+             document.getElementById('hasilUser').textContent = username;
+             document.getElementById('hasilPass').textContent = password;
+             document.getElementById('btnDownload').style.display = 'flex';
+             document.getElementById('areaKartu').style.display = 'block';
+         }
+     </script>
+ </body>
+ </html>
